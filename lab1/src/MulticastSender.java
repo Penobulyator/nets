@@ -9,18 +9,18 @@ public class MulticastSender extends Thread{
     private InetAddress group;
     private int port;
 
-
-    public MulticastSender(int port, InetAddress group) throws IOException {
-        this.port = port;
+    public MulticastSender(InetAddress group, int port) throws IOException {
         this.group = group;
+        this.port = port;
 
-        txSocket = new MulticastSocket(port);
-        txSocket.joinGroup(group);
+        this.txSocket = new MulticastSocket(port);
+        this.txSocket.joinGroup(group);
     }
 
     @Override
     public void run() {
-        while (Thread.currentThread().isInterrupted()){
+        System.out.println("Sender started, sending to port " + port);
+        while (!currentThread().isInterrupted()){
             DatagramPacket packet = new DatagramPacket(Protocol.message.getBytes(), Protocol.message.length(), group, port);
             try {
                 txSocket.send(packet);
@@ -34,6 +34,7 @@ public class MulticastSender extends Thread{
                 currentThread().interrupt();
             }
         }
+        System.out.println("Sender stopped");
         txSocket.close();
     }
 }

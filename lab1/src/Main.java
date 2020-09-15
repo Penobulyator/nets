@@ -1,13 +1,12 @@
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 public class Main {
-    private static final int port = 9000;
-    private static final String group = "224.0.0.1";
-
     public static void listenToReceiver(MulticastReceiver receiver){
         Map<InetAddress, Integer> connections = new HashMap<>();
         while(!Thread.currentThread().isInterrupted()){
@@ -46,20 +45,36 @@ public class Main {
             }
         }
     }
-
+    private static void printUsage(){
+        System.out.println("Usage: group_address port");
+    }
     public static void main(String[] args) {
+        if (args.length < 2){
+            printUsage();
+            return;
+        }
+
+        final InetAddress group;
         try {
-            MulticastSender sender = new MulticastSender(port, InetAddress.getByName(group));
-            MulticastReceiver receiver = new MulticastReceiver(port, InetAddress.getByName(group));
+            group = InetAddress.getByName(args[0]);
+        } catch (UnknownHostException e) {
+            System.out.println("Bad group address");
+            return;
+        }
+        final int port = Integer.parseInt(args[1]);
+
+        try {
+            MulticastSender sender = new MulticastSender(group, port);
+            MulticastReceiver receiver = new MulticastReceiver(group, port);
 
             sender.start();
             receiver.start();
 
             listenToReceiver(receiver);
-
+            Thread.sleep(1000000000);
             sender.interrupt();
-            receiver.interrupt();
-        } catch (IOException e) {
+            //receiver.interrupt();
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
