@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
@@ -6,25 +7,20 @@ import java.util.*;
 
 public class MulticastReceiver extends Thread{
     private MulticastSocket rxSocket;
+    private MulticastReceiverListener listener;
     //private InetAddress group;
     private int port;
-    public Set<InetAddress> getConnections() {
-        return connections;
-    }
-
-    private Set<InetAddress> connections = new HashSet<>();
-
-    public MulticastReceiver(InetAddress group, int port) throws IOException {
+    public MulticastReceiver(InetAddress group, int port, MulticastReceiverListener listener) throws IOException {
         //this.group = group;
         this.port = port;
 
+        this.listener = listener;
         this.rxSocket = new MulticastSocket(port);
         this.rxSocket.joinGroup(group);
     }
 
     @Override
     public void run() {
-        System.out.println("Receiver started, listening on port " + port);
         while(!currentThread().isInterrupted()){
             byte[]buf = new byte[256];
             DatagramPacket packet = new DatagramPacket(buf, buf.length);
@@ -32,18 +28,17 @@ public class MulticastReceiver extends Thread{
                 rxSocket.receive(packet);
             } catch (IOException e) {
                 e.printStackTrace();
-                //Do something??
             }
             String receivedMessage = new String(packet.getData(), 0, packet.getLength());
-            System.out.println("Received packet from " + packet.getAddress().toString() + ":" + packet.getPort());
             if (receivedMessage.equals(Protocol.message)){
-                connections.add(packet.getAddress());
-
-
-
+                listener.addConnection(packet.getAddress());
+            }
+            try {
+                sleep(1000);
+            } catch (InterruptedException e) {
+                currentThread().interrupt();
             }
         }
         rxSocket.close();
-        System.out.println("Receiver stopped");
     }
 }

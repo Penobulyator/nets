@@ -19,14 +19,12 @@ public class MulticastSender extends Thread{
 
     @Override
     public void run() {
-        System.out.println("Sender started, sending to port " + port);
         while (!currentThread().isInterrupted()){
             DatagramPacket packet = new DatagramPacket(Protocol.message.getBytes(), Protocol.message.length(), group, port);
             try {
                 txSocket.send(packet);
             } catch (IOException e) {
                 e.printStackTrace();
-                //Do something??
             }
             try {
                 sleep(Protocol.resendTime * 1000);
@@ -34,7 +32,6 @@ public class MulticastSender extends Thread{
                 currentThread().interrupt();
             }
         }
-        System.out.println("Sender stopped");
         txSocket.close();
     }
 }
