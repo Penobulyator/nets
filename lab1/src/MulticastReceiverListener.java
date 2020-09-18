@@ -40,11 +40,8 @@ public class MulticastReceiverListener extends Thread{
             System.out.println("Hosts alive:");
             synchronized (connections){
                 for(Map.Entry<InetAddress, Integer> connection: connections.entrySet())
-                    if (connection.getValue() == 0){
-                        connections.remove(connection.getKey());
-                    }
-                    else{
-                        System.out.println(connection.getKey().getHostAddress() + " " + connection.getValue());
+                    if (connection.getValue() != 0){
+                        System.out.println(connection.getKey().getHostAddress() + ", last message received " + (Protocol.maxSilenceTime - connection.getValue()) + " ago");
                         connection.setValue(connection.getValue() - 1);
                     }
             }
