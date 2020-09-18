@@ -1,26 +1,25 @@
+import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.Set;
 
 public class MulticastSender extends Thread{
-    private MulticastSocket txSocket;
-    private InetAddress group;
-    private int port;
+    private DatagramSocket txSocket;
+    private InetAddress address;
+    private int receiversPort;
 
-    public MulticastSender(InetAddress group, int port) throws IOException {
-        this.group = group;
-        this.port = port;
-
-        this.txSocket = new MulticastSocket(port);
-        this.txSocket.joinGroup(group);
+    public MulticastSender(InetAddress address) throws IOException {
+        this.address = address;
+        this.txSocket = new DatagramSocket();
     }
 
     @Override
     public void run() {
         while (!currentThread().isInterrupted()){
-            DatagramPacket packet = new DatagramPacket(Protocol.message.getBytes(), Protocol.message.length(), group, port);
+            DatagramPacket packet = new DatagramPacket(Protocol.message.getBytes(), Protocol.message.length(), address, receiversPort);
             try {
                 txSocket.send(packet);
             } catch (IOException e) {

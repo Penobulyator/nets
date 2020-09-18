@@ -41,7 +41,7 @@ public class MulticastReceiverListener extends Thread{
             synchronized (connections){
                 for(Map.Entry<InetAddress, Integer> connection: connections.entrySet())
                     if (connection.getValue() != 0){
-                        System.out.println(connection.getKey().getHostAddress() + ", last message received " + (Protocol.maxSilenceTime - connection.getValue()) + " ago");
+                        System.out.println(connection.getKey().getHostAddress() + ", last message received " + (Protocol.maxSilenceTime - connection.getValue()) + " seconds ago");
                         connection.setValue(connection.getValue() - 1);
                     }
             }

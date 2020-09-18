@@ -29,7 +29,7 @@ public class Main {
 
         try {
             MulticastReceiverListener listener = new MulticastReceiverListener();
-            MulticastSender sender = new MulticastSender(group, port);
+            MulticastSender sender = new MulticastSender(group);
             MulticastReceiver receiver = new MulticastReceiver(group, port, listener);
 
             listener.start();
