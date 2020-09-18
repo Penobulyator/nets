@@ -7,10 +7,10 @@ import java.util.Map;
 public class MulticastReceiverListener extends Thread{
     private Map<InetAddress, Integer> connections = new HashMap<>();
 
-    private static final String[] CLEAR_COMMAND = {"cmd", "/c", "cls"};
+    private static final String[] WINDOWS_CLEAR_COMMAND = {"cmd", "/c", "cls"};
+    private static final String LINUX_CLEAR_COMMAND = "clear";
     private static final String OS = System.getProperty("os.name").toLowerCase();
-    private static final ProcessBuilder processBuilder = new ProcessBuilder(CLEAR_COMMAND).inheritIO();
-
+    private static ProcessBuilder processBuilder;
     public void addConnection(InetAddress address){
         synchronized (connections){
             if (connections.containsKey(address))
@@ -21,14 +21,8 @@ public class MulticastReceiverListener extends Thread{
     }
 
     private void clear(){
-
         try {
-            if (OS.contains("windows")){
-                processBuilder.start().waitFor();
-            }
-            else{
-                Runtime.getRuntime().exec("clear");
-            }
+            processBuilder.start().waitFor();
         } catch (InterruptedException | IOException e) {
             e.printStackTrace();
         }
@@ -36,6 +30,11 @@ public class MulticastReceiverListener extends Thread{
 
     @Override
     public void run() {
+        if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+            processBuilder = new ProcessBuilder(WINDOWS_CLEAR_COMMAND).inheritIO();
+        } else {
+            processBuilder = new ProcessBuilder(LINUX_CLEAR_COMMAND).inheritIO();
+        }
         while(!currentThread().isInterrupted()){
             clear();
             System.out.println("Hosts alive:");
