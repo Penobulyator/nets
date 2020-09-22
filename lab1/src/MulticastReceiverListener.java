@@ -1,26 +1,25 @@
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetAddress;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
-public class MulticastReceiverListener extends Thread{
-    private Map<InetAddress, Integer> connections = new HashMap<>();
-
+public class MulticastReceiverListener extends Thread {
     private static final String[] WINDOWS_CLEAR_COMMAND = {"cmd", "/c", "cls"};
     private static final String LINUX_CLEAR_COMMAND = "clear";
-    private static final String OS = System.getProperty("os.name").toLowerCase();
-    private static ProcessBuilder processBuilder;
-    public void addConnection(InetAddress address){
-        synchronized (connections){
-            if (connections.containsKey(address))
-                connections.replace(address, Protocol.maxSilenceTime);
-            else
-                connections.put(address, Protocol.maxSilenceTime);
+    private final Map<Connection, Integer> connectionsSilenceTime = new TreeMap<>();
+    private ProcessBuilder processBuilder;
+    private static final int REFRESH_PERIOD = 1; //sec
+    public void addConnection(Connection newConnection) {
+        synchronized (connectionsSilenceTime) {
+            if (connectionsSilenceTime.containsKey(newConnection)) {
+                connectionsSilenceTime.replace(newConnection, 0);
+            } else {
+                connectionsSilenceTime.put(newConnection, 0);
+            }
         }
     }
 
-    private void clear(){
+    private void clear() {
         try {
             processBuilder.start().waitFor();
         } catch (InterruptedException | IOException e) {
@@ -35,18 +34,21 @@ public class MulticastReceiverListener extends Thread{
         } else {
             processBuilder = new ProcessBuilder(LINUX_CLEAR_COMMAND).inheritIO();
         }
-        while(!currentThread().isInterrupted()){
+
+        while (!currentThread().isInterrupted()) {
             clear();
             System.out.println("Hosts alive:");
-            synchronized (connections){
-                for(Map.Entry<InetAddress, Integer> connection: connections.entrySet())
-                    if (connection.getValue() != 0){
-                        System.out.println(connection.getKey().getHostAddress() + ", last message received " + (Protocol.maxSilenceTime - connection.getValue()) + " seconds ago");
-                        connection.setValue(connection.getValue() - 1);
+            synchronized (connectionsSilenceTime) {
+                for (Map.Entry<Connection, Integer> connectionSilenceTime : connectionsSilenceTime.entrySet())
+                    //print all the connection and increase silence time
+                    if (connectionSilenceTime.getValue() != Protocol.maxSilenceTime) {
+                        Connection connection = connectionSilenceTime.getKey();
+                        System.out.println(connection.getIpAddress().getHostAddress() + ":" + connection.getPort() + ", last message received " + connectionSilenceTime.getValue() + " seconds ago");
+                        connectionSilenceTime.setValue(connectionSilenceTime.getValue() + 1);
                     }
             }
             try {
-                sleep(Protocol.resendTime * 1000);
+                TimeUnit.SECONDS.sleep(REFRESH_PERIOD);
             } catch (InterruptedException e) {
                 currentThread().interrupt();
             }
