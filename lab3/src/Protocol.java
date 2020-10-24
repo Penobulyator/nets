@@ -7,5 +7,7 @@ public class Protocol {
         public static final byte NO_FLAGS = 0;
         public static final byte ACK = 1;
         public static final byte SYN = 1 << 1;
+        public static final byte PING = 1 << 2;
+        public static final byte SET_DEPUTY = 1 << 3;
     }
 }

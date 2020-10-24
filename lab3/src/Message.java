@@ -1,8 +1,3 @@
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.reflect.Array;
-import java.net.DatagramSocket;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.UUID;
@@ -13,8 +8,6 @@ public class Message {
     private String name;
     private byte[] data;
 
-    private boolean isServiceMessage;
-
     private final static int HEADER_SIZE = Protocol.FLAGS_FIELD_SIZE + Protocol.ID_FIELD_SIZE;
 
     public Message(byte flags, UUID id, String name, byte[] data) {
@@ -22,13 +15,11 @@ public class Message {
         this.id = id;
         this.name = name;
         this.data = data;
-        this.isServiceMessage = false;
     }
 
     public Message(byte flags, UUID id) {
         this.flags = flags;
         this.id = id;
-        this.isServiceMessage = true;
     }
 
     private static byte[] uuidToBytes(UUID uuid){
@@ -47,7 +38,7 @@ public class Message {
 
     public byte[] getBytes(){
         byte[] output;
-        if (isServiceMessage){
+        if (isServiceMessage() && flags != Protocol.Flags.SET_DEPUTY){
             output = new byte[HEADER_SIZE];
 
             //fill header
@@ -84,7 +75,7 @@ public class Message {
             int nameLength = input[HEADER_SIZE];
             byte[] name = new byte[nameLength];
 
-            int dataSize = length - nameLength - HEADER_SIZE;
+            int dataSize = length - nameLength - HEADER_SIZE - Protocol.NAME_LENGTH_FIELD_SIZE;
             byte[] data = new byte[dataSize];
 
             System.arraycopy(input, HEADER_SIZE + Protocol.NAME_LENGTH_FIELD_SIZE, name, 0, nameLength);
@@ -109,7 +100,7 @@ public class Message {
         return data;
     }
 
-    public boolean isServiceMessage() {
-        return isServiceMessage;
+    public boolean isServiceMessage(){
+        return flags != Protocol.Flags.NO_FLAGS;
     }
 }

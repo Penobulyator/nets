@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MessageSender implements Runnable {
     private final static int TIMEOUT = 10000;
@@ -11,7 +12,7 @@ public class MessageSender implements Runnable {
     ChatNode chatNode;
 
     // <id, info>
-    Map<UUID, ResendInfo> resendInfoMap = Collections.synchronizedMap(new HashMap<>());
+    Map<UUID, ResendInfo> resendInfoMap = Collections.synchronizedMap(new ConcurrentHashMap<>());
 
     public MessageSender(DatagramSocket socket, ChatNode chatNode) {
         this.socket = socket;
@@ -40,6 +41,15 @@ public class MessageSender implements Runnable {
         byte[] messageBytes = message.getBytes();
         DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, connection.getIpAddress(), connection.getPort());
         socket.send(packet);
+    }
+
+    public void stopWaiting(Connection connection){
+
+        for(Map.Entry<UUID, ResendInfo> entry: resendInfoMap.entrySet()){
+            if (entry.getValue().connection.equals(connection)){
+                resendInfoMap.remove(entry.getKey());
+            }
+        }
     }
 
     public void gotAck(UUID id){

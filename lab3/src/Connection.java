@@ -1,4 +1,5 @@
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 public class Connection implements Comparable<Connection>{
     private InetAddress ipAddress;
@@ -8,8 +9,6 @@ public class Connection implements Comparable<Connection>{
         this.ipAddress = ipAddress;
         this.port = port;
     }
-
-
 
     public InetAddress getIpAddress() {
         return ipAddress;
@@ -25,7 +24,14 @@ public class Connection implements Comparable<Connection>{
 
     @Override
     public String toString() {
-        return ipAddress.toString() + ":" + port;
+        return ipAddress.toString().substring(1) + ":" + port;
+    }
+
+    public static Connection fromString(String source) throws UnknownHostException {
+        String[] splitted = source.split(":");
+        InetAddress address = InetAddress.getByName(splitted[0]);
+        int port = Integer.parseInt(splitted[1]);
+        return new Connection(address, port);
     }
 
     @Override
