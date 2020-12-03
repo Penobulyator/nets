@@ -26,3 +26,11 @@ hs_err_pid*
 *.iml
 *.properties
 *.MF
+*gradle.*
+*.tar
+*.bin
+*.lock
+*.lock
+*.proto
+*.bat
+
