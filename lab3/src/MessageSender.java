@@ -5,7 +5,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MessageSender implements Runnable {
-    private final static int TIMEOUT = 10000;
+    private final static int TIMEOUT = 5000;
     private final static int RESEND_NUMBER = 10;
 
     DatagramSocket socket;

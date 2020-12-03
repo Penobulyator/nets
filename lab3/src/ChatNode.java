@@ -23,8 +23,6 @@ public class ChatNode implements Runnable{
     Connection parent = null;
     Set<Connection> neighbourSet = Collections.synchronizedSet(new TreeSet<>());
 
-    BlockingQueue<Byte> idPool = new LinkedBlockingQueue<>(256);
-
     private int lossPercent;
 
     public ChatNode(DatagramSocket socket, int lossPercent, String myName, Connection parent) {
@@ -55,11 +53,11 @@ public class ChatNode implements Runnable{
         //tell message sender to stop waiting for reply from this neighbour
         messageSender.stopWaiting(neighbour);
 
-        //remove neighbour from neighboursSet
+        //remove neighbour from neighbourSet
         neighbourSet.remove(neighbour);
         System.out.println("Neighbour " + neighbour.toString() +" doesn't respond");
 
-        //connect to neighbours deputy
+        //connect to the neighbours deputy
         Connection newNeighbour = deputyMap.get(neighbour);
         if (newNeighbour != null){
             System.out.println("Reconnecting to " + newNeighbour.toString());
@@ -67,7 +65,7 @@ public class ChatNode implements Runnable{
             deputyMap.remove(neighbour);
         }
 
-        //pick a new alternate if this neighbour was our alternate
+        //pick a new deputy if this neighbour was our deputy
         if (neighbour.equals(myDeputy)){
             if (!neighbourSet.isEmpty()){
                 changeMyDeputy(neighbourSet.iterator().next());
@@ -137,6 +135,8 @@ public class ChatNode implements Runnable{
 
                 sendAck(receivedMessage, neighbour);
 
+                changeMyDeputy(neighbour);
+
                 if (myDeputy == null){
                     changeMyDeputy(neighbour);
                 }
@@ -199,7 +199,6 @@ public class ChatNode implements Runnable{
                 byte []buf = new byte[MAX_LENGTH];
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
                 socket.receive(packet);
-
                 handlePacket(packet);
             } catch (IOException e) {
                 System.out.println(e.getMessage());
