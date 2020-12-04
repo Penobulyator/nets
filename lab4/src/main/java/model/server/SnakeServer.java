@@ -205,6 +205,10 @@ public class SnakeServer implements Runnable, MessageSenderListener {
                 return;
             }
         }
+
+        stateControlThread.interrupt();
+        announcementMsgSenderThread.interrupt();
+        messageSenderThread.interrupt();
     }
 
     @Override

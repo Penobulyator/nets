@@ -73,7 +73,23 @@ public class SnakeClient implements Runnable, MessageSenderListener {
     }
 
     void handleStateMsg(SnakeProto.GameMessage stateMsg, InetSocketAddress sender) throws IOException {
-        snakeClientListener.updateState(stateMsg.getState().getState());
+        SnakeProto.GameState gameState = stateMsg.getState().getState();
+        boolean dead = true;
+
+        //check if we are alive
+        for (SnakeProto.GamePlayer player: gameState.getPlayers().getPlayersList()){
+            //find myself in players list
+            if (player.getId() == myId){
+
+                //we are alive
+                snakeClientListener.updateState(stateMsg.getState().getState());
+                dead = false;
+                break;
+            }
+        }
+
+        if (dead)
+            snakeClientListener.gameOver();
 
         //send ack
         SnakeProto.GameMessage ack = SnakeProto.GameMessage.newBuilder()

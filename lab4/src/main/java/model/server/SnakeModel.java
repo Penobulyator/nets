@@ -125,17 +125,6 @@ public class SnakeModel {
 
     }
 
-    private SnakeProto.GameState.Coord getSnakePoint(SnakeProto.GameState.Snake snake, int bendIndex){
-        SnakeProto.GameState.Coord point = snake.getPoints(0);
-        for (int i = 1; i < bendIndex; i++){
-            point.toBuilder()
-                    .setX(point.getX() + snake.getPoints(i).getX())
-                    .setY(point.getY() + snake.getPoints(i).getY())
-                    .build();
-        }
-        return point;
-    }
-
     private SnakeProto.GameState.Snake moveSnakeTail(SnakeProto.GameState.Snake snake){
         SnakeProto.GameState.Coord tail = snake.getPoints(snake.getPointsCount() - 1);
         if (tail.getX() == 0){
@@ -202,23 +191,23 @@ public class SnakeModel {
             SnakeProto.GameState.Coord firstSnakeHead = firstSnake.getPoints(0);
             for (SnakeProto.GameState.Snake secondSnake: snakeMap.values()){
                 List<SnakeProto.GameState.Coord> snakeBodyCords = snakeBodyCords(secondSnake);
+                if (firstSnake.equals(secondSnake)){
+
+                    //skip self collision with head
+                    snakeBodyCords.remove(0);
+                }
                 if (snakeBodyCords.contains(firstSnakeHead)){
-                    if (firstSnake == secondSnake && snakeBodyCords.indexOf(firstSnakeHead) == 0){
-                        return;
-                    }
-                    else {
-                        /*first snake dies*/
+                    /*first snake dies*/
 
-                        //randomly place food on dead snake body cords
-                        for(SnakeProto.GameState.Coord firstSnakeBodyCoord: snakeBodyCords(firstSnake)){
-                            if (new Random().nextFloat() > gameConfig.getDeadFoodProb())
-                                food.add(firstSnakeBodyCoord);
-                        }
-
-                        //remove snake from game
-                        snakeMap.remove(snakeMapEntry.getKey());
-                        System.out.println(snakeMapEntry.getKey().getName() + " lost");
+                    //randomly place food on dead snake body cords
+                    for(SnakeProto.GameState.Coord firstSnakeBodyCoord: snakeBodyCords(firstSnake)){
+                        if (new Random().nextFloat() > gameConfig.getDeadFoodProb())
+                            food.add(firstSnakeBodyCoord);
                     }
+
+                    //remove snake from game
+                    snakeMap.remove(snakeMapEntry.getKey());
+                    System.out.println(snakeMapEntry.getKey().getName() + " lost");
                 }
             }
         }

@@ -4,11 +4,18 @@ import java.io.IOException;
 import java.net.*;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.Color;
@@ -33,6 +40,10 @@ public class GameScreenController implements SnakeClientListener {
     private SnakeClient client;
     private SnakeServer server = null;
 
+    private Thread clientThread;
+    private Thread serverThread = null;
+
+    boolean watching = false;
     @FXML
     void initialize() {
     }
@@ -68,8 +79,12 @@ public class GameScreenController implements SnakeClientListener {
         DatagramSocket clientSocket = new DatagramSocket();
         client = new SnakeClient(clientSocket, new InetSocketAddress(InetAddress.getLocalHost(), serverSocket.getLocalPort()), this, name);
 
-        new Thread(server).start();
-        new Thread(client).start();
+
+        serverThread = new Thread(server);
+        clientThread = new  Thread(client);
+
+        serverThread.start();
+        clientThread.start();
 
         setKeys();
     }
@@ -78,7 +93,8 @@ public class GameScreenController implements SnakeClientListener {
         DatagramSocket clientSocket = new DatagramSocket();
         client = new SnakeClient(clientSocket, serverAddress, this, name);
 
-        new Thread(client).start();
+        clientThread = new  Thread(client);
+        clientThread.start();
 
         setKeys();
 
@@ -192,9 +208,45 @@ public class GameScreenController implements SnakeClientListener {
         exception.printStackTrace();
     }
 
+    private void goToStartScreen() {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/start.fxml"));
+        try {
+            Parent root = loader.load();
+            StartScreenController controller = loader.getController();
+            controller.setStage(stage);
+            stage.setScene(new Scene(root));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private void showGameOverAlert() throws IOException {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION, "Game over");
+            alert.show();
+        });
+    }
+
     @Override
     public void gameOver() {
+        if (watching)
+            return;
 
+        watching = true;
+
+        if (clientThread.isAlive())
+            clientThread.interrupt();
+
+        if (serverThread != null && serverThread.isAlive())
+            serverThread.interrupt();
+
+        //send alert to user
+        try {
+            showGameOverAlert();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -211,6 +263,11 @@ public class GameScreenController implements SnakeClientListener {
     }
 
     public void exitPressed(ActionEvent actionEvent) {
+        if (clientThread.isAlive())
+            clientThread.interrupt();
 
+        if (serverThread != null && serverThread.isAlive())
+            serverThread.interrupt();
+        Platform.runLater(this::goToStartScreen);
     }
 }
