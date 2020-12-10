@@ -44,6 +44,7 @@ public class FindGameScreenController implements AnnouncementMessageReceiverList
     }
 
     private void connect(InetSocketAddress server, SnakeProto.GameConfig config) throws IOException {
+        socket.close();
         FXMLLoader loader = new FXMLLoader();
         loader.setLocation(getClass().getResource("/fxml/game.fxml"));
         Parent root = loader.load();

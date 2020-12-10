@@ -37,6 +37,9 @@ public class GameScreenController implements SnakeClientListener {
 
     private String name;
 
+    private DatagramSocket serverSocket = null;
+    private DatagramSocket clientSocket;
+
     private SnakeClient client;
     private SnakeServer server = null;
 
@@ -73,10 +76,10 @@ public class GameScreenController implements SnakeClientListener {
     }
 
     void hostGame() throws SocketException, UnknownHostException {
-        DatagramSocket serverSocket = new DatagramSocket();
+        serverSocket = new DatagramSocket();
         server = new SnakeServer(serverSocket, config);
 
-        DatagramSocket clientSocket = new DatagramSocket();
+        clientSocket = new DatagramSocket();
         client = new SnakeClient(clientSocket, new InetSocketAddress(InetAddress.getLocalHost(), serverSocket.getLocalPort()), this, name);
 
 
@@ -268,6 +271,11 @@ public class GameScreenController implements SnakeClientListener {
 
         if (serverThread != null && serverThread.isAlive())
             serverThread.interrupt();
+
+        clientSocket.close();
+        if (serverSocket != null)
+            serverSocket.close();
+
         Platform.runLater(this::goToStartScreen);
     }
 }
