@@ -3,7 +3,6 @@ package controller;
 import java.io.IOException;
 import java.net.*;
 import java.util.Map;
-import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javafx.application.Platform;
@@ -15,8 +14,8 @@ import javafx.scene.control.Button;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
-import model.client.announcementMessageReceiver.AnnouncementMessageReceiver;
-import model.client.announcementMessageReceiver.AnnouncementMessageReceiverListener;
+import model.snakeNode.announcementMessageReceiver.AnnouncementMessageReceiver;
+import model.snakeNode.announcementMessageReceiver.AnnouncementMessageReceiverListener;
 import model.netConfig.NetConfig;
 import model.snakeProto.SnakeProto;
 

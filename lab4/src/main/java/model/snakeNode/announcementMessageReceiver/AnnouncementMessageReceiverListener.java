@@ -1,4 +1,4 @@
-package model.client.announcementMessageReceiver;
+package model.snakeNode.announcementMessageReceiver;
 
 import model.snakeProto.SnakeProto;
 

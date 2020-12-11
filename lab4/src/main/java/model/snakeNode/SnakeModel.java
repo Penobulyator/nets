@@ -1,4 +1,4 @@
-package model.server;
+package model.snakeNode;
 
 import model.snakeProto.SnakeProto;
 
@@ -7,16 +7,33 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SnakeModel {
     List<SnakeProto.GameState.Coord> food = new LinkedList<>();
+
     Map<SnakeProto.GamePlayer, SnakeProto.GameState.Snake> snakeMap = new ConcurrentHashMap<>();
 
+    SnakeProto.GameConfig gameConfig;
+
+    private int stateOrder = 0;
+
+    //clear model constructor
     public SnakeModel(SnakeProto.GameConfig config) {
         this.gameConfig = config;
     }
 
-    SnakeProto.GameConfig gameConfig;
+    public SnakeModel(SnakeProto.GameState state){
+        gameConfig = state.getConfig();
+
+        for (SnakeProto.GameState.Snake snake: state.getSnakesList()){
+            int snakeOwnerId = snake.getPlayerId();
+            for (SnakeProto.GamePlayer player: state.getPlayers().getPlayersList()){
+                if (player.getId() == snakeOwnerId){
+                    snakeMap.put(player, snake);
+                    break;
+                }
+            }
+        }
+    }
 
 
-    private int stateOrder = 0;
 
     private SnakeProto.GameState.Coord round(SnakeProto.GameState.Coord coord){
         return SnakeProto.GameState.Coord.newBuilder()
