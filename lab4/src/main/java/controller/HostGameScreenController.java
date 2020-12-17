@@ -44,6 +44,8 @@ public class HostGameScreenController {
                 .setWidth(Integer.parseInt(widthTextField.getText()))
                 .setHeight(Integer.parseInt(heightTextField.getText()))
                 .setStateDelayMs(100)
+                .setPingDelayMs(1000)
+                .setNodeTimeoutMs(1000)
                 .build()
         );
 

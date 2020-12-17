@@ -6,27 +6,30 @@
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.text.Text?>
 
-<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.StartScreenController">
-   <children>
-      <TextField fx:id="nameTextField" layoutX="363.0" layoutY="144.0" prefHeight="46.0" prefWidth="274.0" text="Player">
-         <font>
-            <Font size="21.0" />
-         </font>
-      </TextField>
-      <Text layoutX="363.0" layoutY="138.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Enter your name:" textAlignment="CENTER" wrappingWidth="274.0">
-         <font>
-            <Font size="20.0" />
-         </font>
-      </Text>
-      <Button fx:id="hostGameButton" layoutX="395.0" layoutY="282.0" mnemonicParsing="false" onAction="#hostGameButtonPressed" prefHeight="100.0" prefWidth="200.0" text="Host game">
-         <font>
-            <Font size="28.0" />
-         </font>
-      </Button>
-      <Button fx:id="findGameButton" layoutX="395.0" layoutY="419.0" mnemonicParsing="false" onAction="#findGameButtonPressed" prefHeight="100.0" prefWidth="200.0" text="Find game">
-         <font>
-            <Font size="30.0" />
-         </font>
-      </Button>
-   </children>
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0"
+            prefWidth="1000.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="controller.StartScreenController">
+   <TextField fx:id="nameTextField" layoutX="363.0" layoutY="144.0" prefHeight="46.0" prefWidth="274.0" text="Player">
+      <font>
+         <Font size="21.0"/>
+      </font>
+   </TextField>
+   <Text layoutX="363.0" layoutY="138.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Enter your name:"
+         textAlignment="CENTER" wrappingWidth="274.0">
+      <font>
+         <Font size="20.0"/>
+      </font>
+   </Text>
+   <Button fx:id="hostGameButton" layoutX="395.0" layoutY="282.0" mnemonicParsing="false"
+           onAction="#hostGameButtonPressed" prefHeight="100.0" prefWidth="200.0" text="Host game">
+      <font>
+         <Font size="28.0"/>
+      </font>
+   </Button>
+   <Button fx:id="findGameButton" layoutX="395.0" layoutY="419.0" mnemonicParsing="false"
+           onAction="#findGameButtonPressed" prefHeight="100.0" prefWidth="200.0" text="Find game">
+      <font>
+         <Font size="30.0"/>
+      </font>
+   </Button>
 </AnchorPane>

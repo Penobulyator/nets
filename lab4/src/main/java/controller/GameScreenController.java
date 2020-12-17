@@ -67,7 +67,7 @@ public class GameScreenController implements SnakeNodeListener {
         });
     }
 
-    void hostGame() throws SocketException, UnknownHostException {
+    void hostGame() throws SocketException{
         nodeSocket = new DatagramSocket();
         snakeNode = new SnakeNode(nodeSocket, config, this, name);
 
@@ -79,7 +79,7 @@ public class GameScreenController implements SnakeNodeListener {
 
     void connect(InetSocketAddress serverAddress) throws SocketException {
         nodeSocket = new DatagramSocket();
-        snakeNode = new SnakeNode(nodeSocket, serverAddress, this, name);
+        snakeNode = new SnakeNode(nodeSocket, config, this, name,  serverAddress);
 
         snakeNodeThread = new Thread(snakeNode);
         snakeNodeThread.start();
@@ -161,11 +161,11 @@ public class GameScreenController implements SnakeNodeListener {
         Platform.runLater(() -> pane.getChildren().add(rectangle));
     }
 
-    private void drawSnake(SnakeProto.GameState.Snake snake){
+    private void drawSnake(SnakeProto.GameState.Snake snake, Color bodyColor){
         List<SnakeProto.GameState.Coord> snakeCords = snakeBodyCords(snake);
         drawRectangle(snakeCords.get(0), Color.BLUE);
         for (int i = 1; i < snakeCords.size(); i++){
-            drawRectangle(snakeCords.get(i), Color.SKYBLUE);
+            drawRectangle(snakeCords.get(i), bodyColor);
         }
     }
 
@@ -179,14 +179,14 @@ public class GameScreenController implements SnakeNodeListener {
     }
 
     @Override
-    public synchronized void updateState(SnakeProto.GameState gameState) {
+    public synchronized void updateState(SnakeProto.GameState gameState, int myId) {
         Platform.runLater(this::clear);
         for (SnakeProto.GameState.Coord foodCord: gameState.getFoodsList()){
             drawRectangle(foodCord, Color.RED);
         }
 
         for (SnakeProto.GameState.Snake snake: gameState.getSnakesList()){
-            drawSnake(snake);
+            drawSnake(snake, snake.getPlayerId() == myId? Color.ORANGE : Color.SKYBLUE);
         }
         Platform.runLater(() -> setStateText(gameState));
     }
@@ -209,7 +209,7 @@ public class GameScreenController implements SnakeNodeListener {
 
     }
 
-    private void showGameOverAlert() throws IOException {
+    private void showGameOverAlert(){
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.INFORMATION, "Game over");
             alert.show();
@@ -227,11 +227,7 @@ public class GameScreenController implements SnakeNodeListener {
             snakeNodeThread.interrupt();
 
         //send alert to user
-        try {
-            showGameOverAlert();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        showGameOverAlert();
     }
 
 

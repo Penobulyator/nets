@@ -1,4 +1,4 @@
-package model.MsgSender;
+package model.net.MsgSender;
 
 import model.snakeProto.SnakeProto;
 

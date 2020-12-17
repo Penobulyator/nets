@@ -1,17 +1,14 @@
 package model.snakeNode;
 
-import model.MsgSender.MessageSender;
-import model.MsgSender.MessageSenderListener;
-import model.netConfig.NetConfig;
+import model.net.MsgSender.MessageSender;
+import model.net.MsgSender.MessageSenderListener;
+import model.net.NetConfig;
 import model.snakeProto.SnakeProto;
 
-import javax.management.relation.Role;
 import java.io.IOException;
 import java.net.*;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SnakeNode implements Runnable, MessageSenderListener {
     //fields required for all roles
@@ -31,25 +28,26 @@ public class SnakeNode implements Runnable, MessageSenderListener {
 
     private SnakeProto.GameState lastReceivedState = null;
 
+    private boolean iAmInGame = false;
+
     //fields required for MASTER role
     private SnakeModel model;
 
     private SnakeProto.GameConfig config;
 
-    private Set<SnakeProto.GamePlayer> players = Collections.synchronizedSet( new HashSet<>());
-
-    private int idCounter = 0;
+    private Map<Integer, SnakeProto.GamePlayer> players = new ConcurrentHashMap<>();
 
     private InetSocketAddress deputyAddress = null;
 
     //NORMAL node constructor
-    public SnakeNode(DatagramSocket socket, InetSocketAddress serverAddress, SnakeNodeListener snakeClientListener, String name) {
+    public SnakeNode(DatagramSocket socket, SnakeProto.GameConfig config, SnakeNodeListener snakeClientListener, String name, InetSocketAddress serverAddress) {
         this.socket = socket;
-        this.serverAddress = serverAddress;
-        this.snakeNodeListener = snakeClientListener;
+        this.config = config;
         this.name = name;
+        this.snakeNodeListener = snakeClientListener;
+        this.serverAddress = serverAddress;
 
-        messageSender = new MessageSender(socket, this);
+        messageSender = new MessageSender(socket, this, config.getNodeTimeoutMs());
 
         myRole = SnakeProto.NodeRole.NORMAL;
     }
@@ -58,16 +56,50 @@ public class SnakeNode implements Runnable, MessageSenderListener {
     public SnakeNode(DatagramSocket socket, SnakeProto.GameConfig config, SnakeNodeListener snakeNodeListener, String name) {
         this.socket = socket;
         this.config = config;
-        this.snakeNodeListener = snakeNodeListener;
         this.name = name;
-        messageSender = new MessageSender(socket, this);
+        this.snakeNodeListener = snakeNodeListener;
+        messageSender = new MessageSender(socket, this, config.getNodeTimeoutMs());
         model = new SnakeModel(config);
         myRole = SnakeProto.NodeRole.MASTER;
+        iAmInGame = true;
     }
 
     /*Functions for all roles*/
     private long getMsgSeq(){
         return System.nanoTime(); //TODO: is there a better way?
+    }
+
+    private void sendPingLoop(){
+        while (!Thread.currentThread().isInterrupted()){
+                try {
+                    if (myRole != SnakeProto.NodeRole.MASTER){
+                        SnakeProto.GameMessage ping = SnakeProto.GameMessage.newBuilder()
+                                .setMsgSeq(getMsgSeq())
+                                .setPing(SnakeProto.GameMessage.PingMsg.getDefaultInstance())
+                                .build();
+                        messageSender.sendMessage(ping, serverAddress);
+                    }
+                    else {
+                        for (SnakeProto.GamePlayer player: players.values()){
+                            if (player.getId() != myId){
+                                SnakeProto.GameMessage ping = SnakeProto.GameMessage.newBuilder()
+                                        .setMsgSeq(getMsgSeq())
+                                        .setPing(SnakeProto.GameMessage.PingMsg.getDefaultInstance())
+                                        .build();
+                                messageSender.sendAck(ping, new InetSocketAddress(InetAddress.getByName(player.getIpAddress()), player.getPort()));
+                            }
+                        }
+                    }
+                } catch (IOException e) {
+                    return;
+                }
+
+            try {
+                Thread.sleep(config.getPingDelayMs());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     void handlePingMsg(SnakeProto.GameMessage pingMsg, InetSocketAddress sender) throws IOException {
@@ -81,18 +113,24 @@ public class SnakeNode implements Runnable, MessageSenderListener {
     }
 
     void handleAckMsg (SnakeProto.GameMessage ackMsg){
-        if (myId == -1)
+        if (ackMsg.hasReceiverId()){
             myId = ackMsg.getReceiverId();
+            iAmInGame = true;
+        }
 
         messageSender.gotAck(ackMsg.getMsgSeq());
     }
 
     private void handleRoleChangeMsg(SnakeProto.GameMessage roleChangeMsg, InetSocketAddress sender) throws IOException {
-        //change role
         SnakeProto.GameMessage.RoleChangeMsg roleChange = roleChangeMsg.getRoleChange();
-        myRole = roleChange.getReceiverRole();
-        if (roleChange.getSenderRole() == SnakeProto.NodeRole.DEPUTY)
+
+        //change role
+        if (roleChange.getSenderRole() == SnakeProto.NodeRole.MASTER && roleChange.getReceiverRole() == SnakeProto.NodeRole.DEPUTY){
+            myRole = roleChange.getReceiverRole();
+            serverAddress = sender;
+        } else if (roleChange.getSenderRole() == SnakeProto.NodeRole.DEPUTY && roleChange.getReceiverRole() == SnakeProto.NodeRole.NORMAL) {
             deputyAddress = sender;
+        }
 
         //send ack
         SnakeProto.GameMessage ack = SnakeProto.GameMessage.newBuilder()
@@ -103,11 +141,13 @@ public class SnakeNode implements Runnable, MessageSenderListener {
     }
 
     /*Functions for NORMAL role*/
-
     void handleStateMsg(SnakeProto.GameMessage stateMsg, InetSocketAddress sender) throws IOException {
+        if (!iAmInGame)
+            return;
+
         SnakeProto.GameState gameState = stateMsg.getState().getState();
         lastReceivedState = gameState;
-        boolean dead = true;
+        boolean iAmDead = true;
 
         //check if we are alive
         for (SnakeProto.GamePlayer player: gameState.getPlayers().getPlayersList()){
@@ -128,13 +168,13 @@ public class SnakeNode implements Runnable, MessageSenderListener {
             if (player.getId() == myId){
 
                 //we are alive
-                snakeNodeListener.updateState(stateMsg.getState().getState());
-                dead = false;
+                snakeNodeListener.updateState(stateMsg.getState().getState(), myId);
+                iAmDead = false;
                 break;
             }
         }
 
-        if (dead)
+        if (iAmDead)
             snakeNodeListener.gameOver();
 
         //send ack
@@ -159,8 +199,6 @@ public class SnakeNode implements Runnable, MessageSenderListener {
     }
 
     void handleErrorMsg(SnakeProto.GameMessage errorMsg, InetSocketAddress sender) throws IOException {
-        //TODO: do something with error
-
         //send ack
         SnakeProto.GameMessage ack = SnakeProto.GameMessage.newBuilder()
                 .setMsgSeq(errorMsg.getMsgSeq())
@@ -170,56 +208,71 @@ public class SnakeNode implements Runnable, MessageSenderListener {
     }
 
     public void changeDirection(SnakeProto.Direction direction) throws IOException {
-        SnakeProto.GameMessage.SteerMsg steerMsg = SnakeProto.GameMessage.SteerMsg.newBuilder()
-                .setDirection(direction)
-                .build();
 
-        SnakeProto.GameMessage gameMessage = SnakeProto.GameMessage.newBuilder()
-                .setSteer(steerMsg)
-                .setMsgSeq(getMsgSeq())
-                .build();
+        if (myRole != SnakeProto.NodeRole.MASTER){
+            SnakeProto.GameMessage.SteerMsg steerMsg = SnakeProto.GameMessage.SteerMsg.newBuilder()
+                    .setDirection(direction)
+                    .build();
 
-        if (myRole != SnakeProto.NodeRole.MASTER)
+            SnakeProto.GameMessage gameMessage = SnakeProto.GameMessage.newBuilder()
+                    .setSteer(steerMsg)
+                    .setMsgSeq(getMsgSeq())
+                    .build();
             messageSender.sendMessage(gameMessage, serverAddress);
+        }
         else{
-            for (SnakeProto.GamePlayer player: players){
-                if (player.getId() == myId){
-                    model.changeDirection(player, direction);
-                    break;
-                }
-            }
+            model.changeDirection(myId, direction);
         }
     }
 
     /*Functions for MASTER role*/
 
-    private void becomeMaster(){
+    private void becomeMaster() throws IOException {
+        //init model
+        myRole = SnakeProto.NodeRole.MASTER;
         if (lastReceivedState == null){
             model = new SnakeModel(config);
         }
         else {
-            model = new SnakeModel(lastReceivedState);
+            for (SnakeProto.GamePlayer player: lastReceivedState.getPlayers().getPlayersList()){
+                players.put(player.getId(), player);
+            }
+            SnakeProto.GamePlayer myNewPlayer = players.get(myId).toBuilder().clone().setRole(SnakeProto.NodeRole.MASTER).build();
+            players.remove(myId);
+            players.put(myId, myNewPlayer);
+
+            model = new SnakeModel(lastReceivedState.toBuilder().clone().setPlayers(SnakeProto.GamePlayers.newBuilder().addAllPlayers(players.values())).build());
+
+            //pick deputy
+            deputyAddress = null;
+            for (SnakeProto.GamePlayer player: players.values()){
+                InetSocketAddress playerAddress = new InetSocketAddress(InetAddress.getByName(player.getIpAddress()), player.getPort());
+                if (!playerAddress.equals(serverAddress) && player.getId() != myId){
+                    pickDeputy(playerAddress);
+                    break;
+                }
+
+            }
         }
 
-        Thread stateControlThread = new Thread(this::stateControlLoop);
-        stateControlThread.start();
+        new Thread(this::stateControlLoop).start();
 
-        Thread announcementMsgSenderThread = new Thread(this::sendAnnouncementMsgLoop);
-        announcementMsgSenderThread.start();
+        new Thread(this::sendAnnouncementMsgLoop).start();
     }
 
     private int getId(){
-        return idCounter++;
+        return (int) System.nanoTime();
     }
 
     private void sendState() throws IOException {
         SnakeProto.GameState state = model.getGameState();
-        snakeNodeListener.updateState(state);
+
+        snakeNodeListener.updateState(state, myId);
         SnakeProto.GameMessage gameMessage = SnakeProto.GameMessage.newBuilder()
                 .setState(SnakeProto.GameMessage.StateMsg.newBuilder().setState(state))
                 .setMsgSeq(getMsgSeq())
                 .build();
-        for (SnakeProto.GamePlayer player: players){
+        for (SnakeProto.GamePlayer player: players.values()){
             if (player.getId() != myId){
                 messageSender.sendMessage(gameMessage, new InetSocketAddress(InetAddress.getByName(player.getIpAddress()), player.getPort()));
             }
@@ -231,7 +284,7 @@ public class SnakeNode implements Runnable, MessageSenderListener {
 
             //create announcement message
             SnakeProto.GameMessage.AnnouncementMsg announcementMsg = SnakeProto.GameMessage.AnnouncementMsg.newBuilder()
-                    .setPlayers(SnakeProto.GamePlayers.newBuilder().addAllPlayers(players).build())
+                    .setPlayers(SnakeProto.GamePlayers.newBuilder().addAllPlayers(players.values()).build())
                     .setConfig(config)
                     .build();
             //send message
@@ -242,7 +295,6 @@ public class SnakeNode implements Runnable, MessageSenderListener {
                 socket.send(packet);
 
             } catch (IOException e) {
-                e.printStackTrace();
                 return;
             }
 
@@ -261,7 +313,6 @@ public class SnakeNode implements Runnable, MessageSenderListener {
             try {
                 sendState();
             } catch (IOException e) {
-                e.printStackTrace();
                 return;
             }
 
@@ -275,9 +326,9 @@ public class SnakeNode implements Runnable, MessageSenderListener {
 
     private void handleSteerMsg(SnakeProto.GameMessage steerMsg, InetSocketAddress sender) throws IOException {
         //change snake direction
-        for (SnakeProto.GamePlayer player: players){
+        for (SnakeProto.GamePlayer player: players.values()){
             if (player.getIpAddress().equals(sender.getAddress().getHostAddress()) && player.getPort() == sender.getPort()){
-                model.changeDirection(player, steerMsg.getSteer().getDirection());
+                model.changeDirection(player.getId(), steerMsg.getSteer().getDirection());
                 break;
             }
         }
@@ -290,7 +341,9 @@ public class SnakeNode implements Runnable, MessageSenderListener {
         messageSender.sendAck(ack, sender);
     }
 
-    private void changeDeputyAddress(InetSocketAddress sender) throws IOException {
+    private void pickDeputy(InetSocketAddress sender) throws IOException {
+        System.out.println("Picking " + sender.toString() +" as deputy");
+        deputyAddress = sender;
         SnakeProto.GameMessage.RoleChangeMsg roleChangeMsg = SnakeProto.GameMessage.RoleChangeMsg.newBuilder()
                 .setReceiverRole(SnakeProto.NodeRole.DEPUTY)
                 .setSenderRole(SnakeProto.NodeRole.MASTER)
@@ -304,6 +357,7 @@ public class SnakeNode implements Runnable, MessageSenderListener {
     }
 
     private void handleJoinMsg(SnakeProto.GameMessage joinMsg, InetSocketAddress sender) throws IOException {
+        System.out.println("Got join form " + sender.toString());
 
         //create new player
         SnakeProto.GamePlayer player = SnakeProto.GamePlayer.newBuilder()
@@ -311,17 +365,15 @@ public class SnakeNode implements Runnable, MessageSenderListener {
                 .setId(getId())
                 .setIpAddress(sender.getAddress().getHostAddress())
                 .setPort(sender.getPort())
-                .setRole(SnakeProto.NodeRole.NORMAL)
+                .setRole(deputyAddress == null? SnakeProto.NodeRole.DEPUTY : SnakeProto.NodeRole.NORMAL)
                 .setType(SnakeProto.PlayerType.HUMAN)
                 .setScore(0)
                 .build();
 
-        if (deputyAddress == null) {
-            changeDeputyAddress(sender);
-        }
+
 
         model.addPlayer(player);
-        players.add(player);
+        players.put(player.getId(), player);
 
         //send ack
         SnakeProto.GameMessage ack = SnakeProto.GameMessage.newBuilder()
@@ -330,12 +382,16 @@ public class SnakeNode implements Runnable, MessageSenderListener {
                 .setReceiverId(player.getId())
                 .build();
         messageSender.sendAck(ack, sender);
+
+        if (deputyAddress == null) {
+            pickDeputy(sender);
+        }
     }
 
     @Override
     public void run() {
-        Thread messageSenderThread = new Thread(messageSender);
-        messageSenderThread.start();
+        new Thread(messageSender).start();
+        new Thread(this::sendPingLoop).start();
 
         //send join to server if we are a NORMAL node
         if (myRole == SnakeProto.NodeRole.NORMAL){
@@ -347,19 +403,23 @@ public class SnakeNode implements Runnable, MessageSenderListener {
             }
         }
         else if (myRole == SnakeProto.NodeRole.MASTER){
-            becomeMaster();
+            try {
+                becomeMaster();
+            } catch (IOException e) {
+                return;
+            }
             try {
                 SnakeProto.GamePlayer myPlayer = SnakeProto.GamePlayer.newBuilder()
                         .setName(name)
                         .setId(getId())
                         .setIpAddress(InetAddress.getLocalHost().getHostAddress())
-                        .setPort(socket.getPort())
+                        .setPort(socket.getLocalPort())
                         .setRole(SnakeProto.NodeRole.MASTER)
                         .setScore(0)
                         .build();
                 myId = myPlayer.getId();
                 model.addPlayer(myPlayer);
-                players.add(myPlayer);
+                players.put(myId, myPlayer);
             } catch (UnknownHostException e) {
                 e.printStackTrace();
             }
@@ -411,7 +471,6 @@ public class SnakeNode implements Runnable, MessageSenderListener {
 
                 }
             } catch (IOException e) {
-                e.printStackTrace();
                 return;
             }
         }
@@ -421,38 +480,43 @@ public class SnakeNode implements Runnable, MessageSenderListener {
     @Override
     public void connectionNotResponding(InetSocketAddress address) {
         System.out.println(address.toString() + " not responding");
-        if (myRole == SnakeProto.NodeRole.NORMAL && address.equals(serverAddress)){
-            serverAddress = deputyAddress;
-        }
-        else if (myRole == SnakeProto.NodeRole.MASTER){
-            if (address.equals(deputyAddress)){
+        messageSender.stopWaiting(address);
+        try {
+            if (myRole == SnakeProto.NodeRole.NORMAL && address.equals(serverAddress)){
+                if (deputyAddress != null)
+                    serverAddress = deputyAddress;
+                else
+                    System.out.println("Server is dead, but I have no deputy :(");
+            }
+            else if (myRole == SnakeProto.NodeRole.MASTER){
+                if (address.equals(deputyAddress)){
 
-                try {
-                    //remove player
-                    for (SnakeProto.GamePlayer player: players){
-                        if (new InetSocketAddress(InetAddress.getByName(player.getIpAddress()), player.getPort()).equals(address)){
-                            players.remove(player);
-                            break;
+                        //remove player
+                        for (SnakeProto.GamePlayer player: players.values()){
+                            if (new InetSocketAddress(InetAddress.getByName(player.getIpAddress()), player.getPort()).equals(address)){
+                                players.remove(player.getId());
+                                break;
+                            }
                         }
-                    }
 
-                    //pick new deputy
-                    deputyAddress = null;
-                    for (SnakeProto.GamePlayer player: players){
-                        if (player.getId() != myId){
-                            changeDeputyAddress(new InetSocketAddress(InetAddress.getByName(player.getIpAddress()), player.getPort()));
-                            break;
+                        //pick new deputy
+                        if (deputyAddress == address){
+                            deputyAddress = null;
+                            for (SnakeProto.GamePlayer player: players.values()){
+                                if (player.getId() != myId){
+                                    pickDeputy(new InetSocketAddress(InetAddress.getByName(player.getIpAddress()), player.getPort()));
+                                    break;
+                                }
+                            }
                         }
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
             }
-        }
-        else if (myRole == SnakeProto.NodeRole.DEPUTY && address.equals(serverAddress)){
-            myRole = SnakeProto.NodeRole.MASTER;
-            becomeMaster();
-            this.config = lastReceivedState.getConfig();
+            else if (myRole == SnakeProto.NodeRole.DEPUTY && address.equals(serverAddress)){
+                System.out.println("Becoming master");
+                becomeMaster();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

@@ -1,6 +1,6 @@
 package model.snakeNode.announcementMessageReceiver;
 
-import model.netConfig.NetConfig;
+import model.net.NetConfig;
 import model.snakeProto.SnakeProto;
 
 import java.io.IOException;

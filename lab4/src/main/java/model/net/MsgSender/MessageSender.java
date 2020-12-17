@@ -1,4 +1,4 @@
-package model.MsgSender;
+package model.net.MsgSender;
 
 import model.snakeProto.SnakeProto;
 
@@ -10,8 +10,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MessageSender implements Runnable {
-    private final static int TIMEOUT = 5000;
-    private final static int RESEND_NUMBER = 10;
+    private int timeout;
+    private final static int RESEND_NUMBER = 1;
 
     DatagramSocket socket;
     MessageSenderListener listener;
@@ -19,9 +19,10 @@ public class MessageSender implements Runnable {
     // <id, info>
     Map<Long, ResendInfo> resendInfoMap = Collections.synchronizedMap(new ConcurrentHashMap<>());
 
-    public MessageSender(DatagramSocket socket, MessageSenderListener listener) {
+    public MessageSender(DatagramSocket socket, MessageSenderListener listener, int timeout) {
         this.socket = socket;
         this.listener = listener;
+        this.timeout = timeout;
     }
 
     private void sendMessage(Long id) throws IOException {
@@ -62,16 +63,16 @@ public class MessageSender implements Runnable {
     public void run() {
         while (!Thread.currentThread().isInterrupted()){
             try {
-                Thread.sleep(TIMEOUT / RESEND_NUMBER);
+                Thread.sleep(timeout / RESEND_NUMBER);
                 for(Map.Entry<Long, ResendInfo> entry: resendInfoMap.entrySet()){
                     ResendInfo resendInfo = entry.getValue();
-                    if (resendInfo.silenceTime == TIMEOUT){
+                    if (resendInfo.silenceTime == timeout){
                         listener.connectionNotResponding(resendInfo.inetSocketAddress);
                         resendInfoMap.remove(entry.getKey());
                     }
                     else{
                         sendMessage(entry.getKey());
-                        resendInfo.silenceTime += TIMEOUT / RESEND_NUMBER;
+                        resendInfo.silenceTime += timeout / RESEND_NUMBER;
                     }
                 }
             } catch (IOException | InterruptedException e) {

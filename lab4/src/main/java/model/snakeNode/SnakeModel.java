@@ -224,7 +224,6 @@ public class SnakeModel {
 
                     //remove snake from game
                     snakeMap.remove(snakeMapEntry.getKey());
-                    System.out.println(snakeMapEntry.getKey().getName() + " lost");
                 }
             }
         }
@@ -240,14 +239,18 @@ public class SnakeModel {
             boolean snakeAteFood = false;
             for (SnakeProto.GameState.Coord foodCord: food){
                 if (foodCord.equals(snakeHead)){
-                    //snake eats food
-                    player.toBuilder().setScore(player.getScore() + 1);
+
                     snakeAteFood = true;
                     food.remove(foodCord);
                     break;
                 }
             }
-            if (!snakeAteFood){
+            if (snakeAteFood){
+                //snake eats food
+                snakeMap.put(snakeMapEntry.getKey().toBuilder().setScore(player.getScore() + 1).build(), snakeMapEntry.getValue());
+                snakeMap.remove(snakeMapEntry.getKey());
+            }
+            else {
                 snakeMapEntry.setValue(moveSnakeTail(snake));
             }
         }
@@ -372,28 +375,32 @@ public class SnakeModel {
         return true;
     }
 
-    public void changeDirection(SnakeProto.GamePlayer player, SnakeProto.Direction direction){
-        SnakeProto.GameState.Snake snake = snakeMap.get(player);
+    public void changeDirection(int id, SnakeProto.Direction direction){
+        for(SnakeProto.GamePlayer player: snakeMap.keySet()){
+            if (player.getId() == id){
+                SnakeProto.GameState.Snake snake = snakeMap.get(player);
 
-        switch (direction){
-            case UP:
-                if (snake.getHeadDirection() == SnakeProto.Direction.DOWN)
-                    return;
-                break;
-            case DOWN:
-                if (snake.getHeadDirection() == SnakeProto.Direction.UP)
-                    return;
-                break;
-            case LEFT:
-                if (snake.getHeadDirection() == SnakeProto.Direction.RIGHT)
-                    return;
-                break;
-            case RIGHT:
-                if (snake.getHeadDirection() == SnakeProto.Direction.LEFT)
-                    return;
-                break;
+                switch (direction){
+                    case UP:
+                        if (snake.getHeadDirection() == SnakeProto.Direction.DOWN)
+                            return;
+                        break;
+                    case DOWN:
+                        if (snake.getHeadDirection() == SnakeProto.Direction.UP)
+                            return;
+                        break;
+                    case LEFT:
+                        if (snake.getHeadDirection() == SnakeProto.Direction.RIGHT)
+                            return;
+                        break;
+                    case RIGHT:
+                        if (snake.getHeadDirection() == SnakeProto.Direction.LEFT)
+                            return;
+                        break;
+                }
+                snakeMap.put(player, snake.toBuilder().setHeadDirection(direction).build());
+            }
         }
-        snakeMap.put(player, snake.toBuilder().setHeadDirection(direction).build());
     }
 
     public void changeState(){

@@ -16,7 +16,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import model.snakeNode.announcementMessageReceiver.AnnouncementMessageReceiver;
 import model.snakeNode.announcementMessageReceiver.AnnouncementMessageReceiverListener;
-import model.netConfig.NetConfig;
+import model.net.NetConfig;
 import model.snakeProto.SnakeProto;
 
 public class FindGameScreenController implements AnnouncementMessageReceiverListener {
@@ -94,7 +94,7 @@ public class FindGameScreenController implements AnnouncementMessageReceiverList
                     System.out.println("Connecting to " + entry.getKey().toString());
                     connect(entry.getKey(), entry.getValue().getConfig());
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    return;
                 }
             });
 
