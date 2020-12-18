@@ -30,13 +30,22 @@ public class HostSocketHandler {
             boolean success = forwarder.read();
             if (!success){
                 listener.closeSocket(readSocketChanel);
+                return;
             }
         }
         else if (selectionKey.channel().equals(writeSocketChannel) && selectionKey.isWritable()){
             boolean success = forwarder.write();
             if (!success){
                 listener.closeSocket(writeSocketChannel);
+                return;
             }
+        }
+
+        if (forwarder.hasMessageToForward()){
+            selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+        }
+        else {
+            selectionKey.interestOps(SelectionKey.OP_READ);
         }
     }
 }

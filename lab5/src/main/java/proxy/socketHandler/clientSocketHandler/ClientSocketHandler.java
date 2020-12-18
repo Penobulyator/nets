@@ -205,6 +205,13 @@ public class ClientSocketHandler {
                         return;
                     }
                 }
+
+                if (forwarder.hasMessageToForward()){
+                    selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+                }
+                else {
+                    selectionKey.interestOps(SelectionKey.OP_READ);
+                }
                 break;
         }
     }

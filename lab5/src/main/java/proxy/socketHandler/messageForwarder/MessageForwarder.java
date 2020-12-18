@@ -18,6 +18,10 @@ public class MessageForwarder {
     }
 
 
+    public boolean hasMessageToForward(){
+        return !messageQueue.isEmpty();
+    }
+
     //
     // Returns true if operation was successful
     //
