@@ -1,8 +1,9 @@
-package socketHandler.clientSocketHandler;
+package proxy.socketHandler.clientSocketHandler;
 
-import socketHandler.messageForwarder.MessageForwarder;
+import proxy.socketHandler.messageForwarder.MessageForwarder;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -18,6 +19,7 @@ public class ClientSocketHandler {
     ClientSocketHandlerListener listener;
 
     State state;
+
 
 
 
@@ -46,7 +48,7 @@ public class ClientSocketHandler {
             return;
         }
 
-        byte[] bufBytes = Arrays.copyOfRange(byteBuffer.array(), 0,length);
+        byte[] bufBytes = Arrays.copyOfRange(byteBuffer.array(), 0, length);
 
         //System.out.println("Reading greeting: " + Arrays.toString(bufBytes));
 
@@ -94,7 +96,7 @@ public class ClientSocketHandler {
 
 
         ByteBuffer byteBuffer = ByteBuffer.allocate(300);
-        int length = 0;
+        int length;
         try {
             length = readSocketChannel.read(byteBuffer);
         } catch (IOException e) {
@@ -129,6 +131,7 @@ public class ClientSocketHandler {
 
         InetSocketAddress inetSocketAddress = new InetSocketAddress(address, port);
         writeSocketChanel = SocketChannel.open();
+
         writeSocketChanel.connect(inetSocketAddress);
 
         listener.addServerSocketListener(writeSocketChanel, readSocketChannel);
@@ -162,6 +165,9 @@ public class ClientSocketHandler {
     }
 
     public void handle(SelectionKey selectionKey) throws IOException {
+        if (!selectionKey.isValid())
+            return;
+
         switch (state){
 
             case READING_GREETING:

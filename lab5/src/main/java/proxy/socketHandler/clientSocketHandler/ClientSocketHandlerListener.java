@@ -1,4 +1,4 @@
-package socketHandler.clientSocketHandler;
+package proxy.socketHandler.clientSocketHandler;
 
 import java.nio.channels.SocketChannel;
 

@@ -1,22 +1,20 @@
-package socketHandler.serverSocketHandler;
+package proxy.socketHandler.serverSocketHandler;
 
-import socketHandler.messageForwarder.MessageForwarder;
+import proxy.socketHandler.messageForwarder.MessageForwarder;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayDeque;
 
-public class ServerSocketHandler {
+public class HostSocketHandler {
     SocketChannel readSocketChanel;
     SocketChannel writeSocketChannel;
 
     MessageForwarder forwarder;
 
-    ServerSocketHandlerListener listener;
+    HostSocketHandlerListener listener;
 
-    public ServerSocketHandler(SocketChannel readSocketChanel, SocketChannel writeSocketChannel, ServerSocketHandlerListener listener) {
+    public HostSocketHandler(SocketChannel readSocketChanel, SocketChannel writeSocketChannel, HostSocketHandlerListener listener) {
         this.readSocketChanel = readSocketChanel;
         this.writeSocketChannel = writeSocketChannel;
         this.listener = listener;
@@ -25,6 +23,9 @@ public class ServerSocketHandler {
     }
 
     public void handle(SelectionKey selectionKey) throws IOException {
+        if (!selectionKey.isValid())
+            return;
+
         if (selectionKey.channel().equals(readSocketChanel) && selectionKey.isReadable()){
             boolean success = forwarder.read();
             if (!success){

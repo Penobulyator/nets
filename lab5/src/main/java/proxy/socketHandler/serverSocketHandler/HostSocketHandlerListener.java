@@ -1,7 +1,7 @@
-package socketHandler.serverSocketHandler;
+package proxy.socketHandler.serverSocketHandler;
 
 import java.nio.channels.SocketChannel;
 
-public interface ServerSocketHandlerListener {
+public interface HostSocketHandlerListener {
     void closeSocket(SocketChannel socketChannel);
 }

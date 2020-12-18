@@ -1,4 +1,4 @@
-package socketHandler.messageForwarder;
+package proxy.socketHandler.messageForwarder;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

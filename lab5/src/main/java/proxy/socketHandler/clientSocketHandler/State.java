@@ -1,4 +1,4 @@
-package socketHandler.clientSocketHandler;
+package proxy.socketHandler.clientSocketHandler;
 
 public enum State {
     READING_GREETING,
