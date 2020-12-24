@@ -3,7 +3,6 @@ package proxy;
 import proxy.socketHandler.clientSocketHandler.ClientSocketHandler;
 import proxy.socketHandler.serverSocketHandler.HostSocketHandler;
 
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 
 public class ProxyEntry {

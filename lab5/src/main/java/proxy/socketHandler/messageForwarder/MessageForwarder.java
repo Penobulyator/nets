@@ -25,9 +25,9 @@ public class MessageForwarder {
     //
     // Returns true if operation was successful
     //
-    public boolean read() throws IOException {
+    public boolean tryRead() {
         //System.out.println("Reading from " + readSocketChanel.getRemoteAddress().toString());
-        ByteBuffer byteBuffer = ByteBuffer.allocate(4046);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(1 << 20);
         try {
             readSocketChanel.read(byteBuffer);
         } catch (IOException e) {
@@ -42,10 +42,13 @@ public class MessageForwarder {
     //
     // Returns true if operation was successful
     //
-    public boolean write() {
+    public boolean tryWrite() {
         if (!messageQueue.isEmpty()){
+            int length = 0;
             try {
-                writeSocketChanel.write(messageQueue.pop());
+                length = writeSocketChanel.write(messageQueue.pop());
+                //System.out.println("Forwarding from " + readSocketChanel.getRemoteAddress() + " to " + writeSocketChanel.getRemoteAddress() +" " + length + " bytes");
+
             } catch (IOException e) {
                 return false;
             }

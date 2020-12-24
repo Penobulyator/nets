@@ -3,7 +3,6 @@ package proxy.socketHandler.clientSocketHandler;
 import proxy.socketHandler.messageForwarder.MessageForwarder;
 
 import java.io.IOException;
-import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -11,8 +10,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 
 public class ClientSocketHandler {
-    SocketChannel readSocketChannel;
-    SocketChannel writeSocketChanel = null;
+    SocketChannel clientSocket;
+    SocketChannel hostSocket = null;
 
     MessageForwarder forwarder;
 
@@ -23,8 +22,8 @@ public class ClientSocketHandler {
 
 
 
-    public ClientSocketHandler(SocketChannel readSocketChannel, ClientSocketHandlerListener listener) {
-        this.readSocketChannel = readSocketChannel;
+    public ClientSocketHandler(SocketChannel clientSocket, ClientSocketHandlerListener listener) {
+        this.clientSocket = clientSocket;
         this.listener = listener;
         state = State.READING_GREETING;
     }
@@ -40,9 +39,9 @@ public class ClientSocketHandler {
         ByteBuffer byteBuffer = ByteBuffer.allocate(257);
         int length = 0;
         try {
-            length = readSocketChannel.read(byteBuffer);
+            length = clientSocket.read(byteBuffer);
         } catch (IOException e) {
-            listener.closeSocket(readSocketChannel);
+            listener.closeSession(clientSocket);
         }
         if (length == 0){
             return;
@@ -80,7 +79,7 @@ public class ClientSocketHandler {
         ByteBuffer byteBuffer = ByteBuffer.allocate(message.length);
         byteBuffer.put(message);
         byteBuffer.flip();
-        readSocketChannel.write(byteBuffer);
+        clientSocket.write(byteBuffer);
 
         state = State.READING_CONNECTION_REQUEST;
     }
@@ -98,9 +97,9 @@ public class ClientSocketHandler {
         ByteBuffer byteBuffer = ByteBuffer.allocate(300);
         int length;
         try {
-            length = readSocketChannel.read(byteBuffer);
+            length = clientSocket.read(byteBuffer);
         } catch (IOException e) {
-            listener.closeSocket(readSocketChannel);
+            listener.closeSession(clientSocket);
             return;
         }
         if (length == 0){
@@ -124,19 +123,17 @@ public class ClientSocketHandler {
             System.out.println("Client wants to establish IPv6 connection");
         }
 
-        String address = new String(Arrays.copyOfRange(bufBytes, 5, 5 + addressLength));
+        String address = new String(Arrays.copyOfRange(bufBytes, 5,  5 + addressLength));
 
         byte[] portBytes =  {bufBytes[length -2], bufBytes[length - 1]};
         int port = ByteBuffer.wrap(portBytes).getShort();
 
-        InetSocketAddress inetSocketAddress = new InetSocketAddress(address, port);
-        writeSocketChanel = SocketChannel.open();
+        InetSocketAddress hostAddress = new InetSocketAddress(address, port);
+        hostSocket = SocketChannel.open();
 
-        writeSocketChanel.connect(inetSocketAddress);
+        listener.addServerSocketListener(hostSocket, clientSocket, hostAddress);
 
-        listener.addServerSocketListener(writeSocketChanel, readSocketChannel);
-
-        forwarder = new MessageForwarder(readSocketChannel, writeSocketChanel);
+        forwarder = new MessageForwarder(clientSocket, hostSocket);
 
         state = State.SENDING_RESPONSE;
     }
@@ -159,7 +156,7 @@ public class ClientSocketHandler {
         byteBuffer.put(message);
         byteBuffer.flip();
 
-        readSocketChannel.write(byteBuffer);
+        clientSocket.write(byteBuffer);
 
         state = State.FORWARDING;
     }
@@ -191,26 +188,26 @@ public class ClientSocketHandler {
                 }
                 break;
             case FORWARDING:
-                if (selectionKey.channel().equals(readSocketChannel) && selectionKey.isReadable()){
-                    boolean success = forwarder.read();
+                if (selectionKey.channel().equals(clientSocket) && selectionKey.isReadable()){
+                    boolean success = forwarder.tryRead();
                     if (!success){
-                        listener.closeSocket(readSocketChannel);
+                        listener.closeSession(clientSocket);
                         return;
                     }
                 }
-                else if (selectionKey.channel().equals(writeSocketChanel) && selectionKey.isWritable()){
-                    boolean success = forwarder.write();
+                else if (selectionKey.channel().equals(hostSocket) && selectionKey.isWritable()){
+                    boolean success = forwarder.tryWrite();
                     if (!success){
-                        listener.closeSocket(writeSocketChanel);
+                        listener.closeSession(hostSocket);
                         return;
                     }
                 }
 
                 if (forwarder.hasMessageToForward()){
-                    selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+                    //selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
                 }
                 else {
-                    selectionKey.interestOps(SelectionKey.OP_READ);
+                    //selectionKey.interestOps(SelectionKey.OP_READ);
                 }
                 break;
         }
