@@ -4,6 +4,6 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
 
 public interface ClientSocketHandlerListener {
-    void addServerSocketListener(SocketChannel hostSocket, SocketChannel clientSocket, InetSocketAddress hostAddress);
+    void addHostSocket(SocketChannel hostSocket, SocketChannel clientSocket, String hostName, int port);
     void closeSession(SocketChannel socketChannel);
 }

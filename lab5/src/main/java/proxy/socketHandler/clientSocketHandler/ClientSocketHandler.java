@@ -123,15 +123,14 @@ public class ClientSocketHandler {
             System.out.println("Client wants to establish IPv6 connection");
         }
 
-        String address = new String(Arrays.copyOfRange(bufBytes, 5,  5 + addressLength));
+        String hostName = new String(Arrays.copyOfRange(bufBytes, 5,  5 + addressLength));
 
         byte[] portBytes =  {bufBytes[length -2], bufBytes[length - 1]};
         int port = ByteBuffer.wrap(portBytes).getShort();
 
-        InetSocketAddress hostAddress = new InetSocketAddress(address, port);
         hostSocket = SocketChannel.open();
 
-        listener.addServerSocketListener(hostSocket, clientSocket, hostAddress);
+        listener.addHostSocket(hostSocket, clientSocket, hostName, port);
 
         forwarder = new MessageForwarder(clientSocket, hostSocket);
 

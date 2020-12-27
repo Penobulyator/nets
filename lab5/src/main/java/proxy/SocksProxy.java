@@ -1,5 +1,6 @@
 package proxy;
 
+import org.xbill.DNS.*;
 import proxy.socketHandler.clientSocketHandler.ClientSocketHandler;
 import proxy.socketHandler.clientSocketHandler.ClientSocketHandlerListener;
 import proxy.socketHandler.serverSocketHandler.HostSocketHandler;
@@ -8,8 +9,12 @@ import proxy.socketHandler.serverSocketHandler.HostSocketHandlerListener;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+
 
 public class SocksProxy implements ClientSocketHandlerListener, HostSocketHandlerListener {
     ServerSocketChannel serverSocketChannel;
@@ -17,6 +22,8 @@ public class SocksProxy implements ClientSocketHandlerListener, HostSocketHandle
     Selector selector;
 
     Set<ProxyEntry> proxyEntries = ConcurrentHashMap.newKeySet();
+
+    Map<ClientSocketHandler, ConnectMapEntry> connectMap = new ConcurrentHashMap<>();
 
     public SocksProxy(ServerSocketChannel serverSocketChannel) throws IOException {
         this.serverSocketChannel = serverSocketChannel;
@@ -46,33 +53,11 @@ public class SocksProxy implements ClientSocketHandlerListener, HostSocketHandle
                 if (!selectionKey.isValid())
                     continue;
 
-                if (selectionKey.isAcceptable()){
+                if (selectionKey.channel() instanceof ServerSocketChannel){
                     accept();
                 }
-                else {
-
+                else if (selectionKey.channel() instanceof SocketChannel){
                     SelectableChannel channel = selectionKey.channel();
-
-                    /*if (selectionKey.isConnectable() && (selectionKey.interestOps() & SelectionKey.OP_CONNECT) != 0){
-                        for (ProxyEntry entry: proxyEntries){
-                            if (entry.hasHostHandler()) {
-                                SocketChannel hostSocket = entry.getHostSocket();
-
-                                if (hostSocket.equals(channel)){
-                                    if (hostSocket.finishConnect()){
-                                        System.out.println("Connected to " + hostSocket.getRemoteAddress().toString());
-                                        selectionKey.interestOps(0);
-                                        selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-                                    }
-                                    else {
-                                        System.out.println("Failed to connect to " + hostSocket.getRemoteAddress().toString());
-                                        closeSession(hostSocket);
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-                    }*/
 
                     for (ProxyEntry proxyEntry: proxyEntries) {
                         if (channel.equals(proxyEntry.getClientSocket()) || channel.equals(proxyEntry.getHostSocket())){
@@ -86,23 +71,18 @@ public class SocksProxy implements ClientSocketHandlerListener, HostSocketHandle
                         }
                     }
                 }
+                else if (selectionKey.channel() instanceof DatagramChannel){
+
+                }
             }
         }
     }
 
     @Override
-    public void addServerSocketListener(SocketChannel hostSocket, SocketChannel clientSocket, InetSocketAddress hostAddress) {
+    public void addHostSocket(SocketChannel hostSocket, SocketChannel clientSocket, String hostName, int port) {
         try {
-            //TODO: make resolve and connect nonblocking
-            //hostSocket.configureBlocking(false);
-            //hostSocket.connect(hostAddress);
-            //System.out.println("Stating to connect to " + hostAddress + " (requested by " + clientSocket.getRemoteAddress() + ")");
-            //hostSocket.register(selector, SelectionKey.OP_CONNECT | SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-
-            hostSocket.connect(hostAddress);
             hostSocket.configureBlocking(false);
-            hostSocket.register(selector,  SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-
+            //hostSocket.register(selector,  SelectionKey.OP_READ | SelectionKey.OP_WRITE);
             for (ProxyEntry proxyEntry: proxyEntries){
                 if (proxyEntry.getClientSocket().equals(clientSocket)){
                     proxyEntry.addServerSocketHandler(hostSocket, new HostSocketHandler(hostSocket, clientSocket, this));
