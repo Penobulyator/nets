@@ -34,3 +34,5 @@ hs_err_pid*
 *.proto
 *.bat
 
+HtmlChartParser/gradlew
+HtmlChartParser/settings.gradle
