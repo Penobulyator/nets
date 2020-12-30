@@ -1,15 +1,11 @@
+import lombok.Data;
 import lombok.Getter;
 
+@Data
 public class ChartEntry {
     @Getter
-    private String title;
+    private final String title;
 
     @Getter
-    private String author;
-
-
-    public ChartEntry(String title, String author) {
-        this.title = title;
-        this.author = author;
-    }
+    private final String author;
 }
